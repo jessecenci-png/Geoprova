@@ -63,3 +63,9 @@ Critérios experimentais versionados alertam sobre isTimelessVisit booleano fals
 `npm test`: análise, alertas, coordenadas com graus, datas/fusos/DST, sobreposições, recortes, precisão preservada, totais, XLSX, reprodução, parsing das sugestões, cache e restrições da rota. Chromium: digitação, seleção automática, Leaflet, invalidação ao editar, análise e exportação; serviços de localização foram simulados nesses testes.
 
 A consulta real a Photon e OSM neste ambiente retornou `CONNECT 403` do proxy antes de alcançar os provedores. Os domínios foram salvos no rascunho de rede para revisão; a conectividade real continua pendente de aplicação dessa configuração. Publicação do ambiente e implantação de um site não foram realizadas. Os JSONs originais dos testes do pedido não foram fornecidos: sua validação permanece pendente.
+
+## Testar pelo GitHub Pages
+
+O aplicativo completo está em `docs/index.html`, sem servidor Node ou instalação no computador. No GitHub, acesse Settings → Pages → Source: Deploy from a branch → Branch: entrega-geoprova → Folder: /docs → Save. O endereço esperado após a publicação é https://jessecenci-png.github.io/Geoprova/ . A publicação depende das configurações e da disponibilidade do GitHub Pages para este repositório. O arquivo .nojekyll evita processamento do HTML compilado.
+
+Essa edição é estática e consulta o Photon diretamente. O histórico e os relatórios continuam no navegador; busca e imagens dependem dos provedores externos. Preparar os arquivos não confirma que o Pages foi ativado ou que as consultas reais funcionam. A tentativa de consultar/configurar o Pages pela API deste ambiente retornou Forbidden.
