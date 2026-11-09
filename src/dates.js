@@ -1,5 +1,7 @@
 export function displayDate(iso){const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return match?`${match[3]}-${match[2]}-${match[1]}`:iso;}
 export function displayMonth(iso){const match=/^(\d{4})-(\d{2})$/.exec(iso||'');return match?`${match[2]}-${match[1]}`:iso;}
+export function weekdayName(day){return new Intl.DateTimeFormat('pt-BR',{timeZone:'UTC',weekday:'long'}).format(new Date(day+'T12:00:00Z'));}
+export function toMinute(time){return time==null?null:Math.floor(time/60000)*60000;}
 export function parseDateInput(value){
   const match=/^(\d{2})-(\d{2})-(\d{4})$/.exec(value.trim());
   if(!match)throw Error('Informe as datas no formato DD-MM-AAAA.');

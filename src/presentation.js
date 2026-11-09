@@ -1,6 +1,6 @@
 import {nextDay,dayAt} from './analysis.js';
-import {displayDate} from './dates.js';
-export function durationText(ms) { if(ms==null)return 'Não apurável';return `${Math.floor(ms/3600000)}h ${String(Math.floor(ms%3600000/60000)).padStart(2,'0')}min ${String(Math.floor(ms%60000/1000)).padStart(2,'0')}s`; }
+import {displayDate,weekdayName,toMinute} from './dates.js';
+export function durationText(ms) { if(ms==null)return 'Não apurável';return `${Math.floor(ms/3600000)}h ${String(Math.floor(ms%3600000/60000)).padStart(2,'0')}min`; }
 export function accuracyText(row) {
   const number=n=>n.toLocaleString('pt-BR',{maximumFractionDigits:1});
   const visit=row.accuracy==null?'Visita: não informada':`Visita: ${number(row.accuracy)} m`;
@@ -9,18 +9,21 @@ export function accuracyText(row) {
 }
 // Keep every visit/return separate. Never turn a single recorded position into an arrival/exit.
 export function summaryRows(report) {
+  const observationsByDay=new Map();
+  for(const observation of report.observations||[]){const day=dayAt(observation.time,report.params.zone);if(!observationsByDay.has(day))observationsByDay.set(day,[]);observationsByDay.get(day).push(observation);}
+  const recordByRef=new Map(report.records.map(record=>[record.ref,record]));
   return report.days.flatMap(day=>{
     const visitRows=day.periods.map(period=>{
-    const source=report.records.find(r=>r.ref===period.ref);
+    const source=recordByRef.get(period.ref);
     const supporting=report.points.filter(p=>p.within&&p.time>=period.start&&p.time<=period.end&&Number.isFinite(p.accuracy)&&p.accuracy>=0);
     const accuracies=supporting.map(p=>p.accuracy);
     return {
     day:day.day,arrival:period.originalStart,departure:period.originalEnd,
-    durationMs:period.end-period.start,accuracy:source?.accuracy??null,
+    durationMs:toMinute(period.end)-toMinute(period.start),accuracy:source?.accuracy??null,
     supportAccuracy:accuracies.length?{min:accuracies.reduce((a,b)=>Math.min(a,b)),max:accuracies.reduce((a,b)=>Math.max(a,b)),count:accuracies.length,refs:supporting.map(p=>p.ref)}:null,
     ref:period.ref,alerts:period.alerts
   };});
-    const observations=(report.observations||[]).filter(p=>dayAt(p.time,report.params.zone)===day.day&&!day.periods.some(v=>p.time>=v.start&&p.time<=v.end));
+    const observations=(observationsByDay.get(day.day)||[]).filter(p=>!day.periods.some(v=>p.time>=v.start&&p.time<=v.end));
     const groups=[];
     for(const observation of observations){const previous=groups.at(-1)?.at(-1),gap=report.params.maxGapMinutes*60000;
       const outside=previous&&(report.points||[]).some(p=>p.within===false&&p.time>previous.time&&p.time<observation.time);
@@ -42,4 +45,12 @@ export function reportRows(report){const rows=summaryRows(report),totals=periodT
   if(!rows[index+1]||weekStart(rows[index+1].day)!==weekStart(row.day))output.push({...totals.weeks.find(w=>w.key===weekStart(row.day)),type:'week'});
   return output;
 });}
+export function dailyRows(report){
+  const rows=summaryRows(report).map((row,index)=>({...row,rowNumber:index+1}));
+  return report.days.map(day=>{const sameDay=rows.filter(row=>row.day===day.day);return {day:day.day,weekday:weekdayName(day.day),durationMs:day.durationMs,alerts:day.alerts,status:day.status,emptyRowNumber:sameDay[0]?.rowNumber,intervals:sameDay.filter(row=>row.arrival!=null||row.firstPosition!=null)};});
+}
+export function groupedReportRows(report){const days=dailyRows(report),totals=periodTotals(report);return days.flatMap((day,index)=>{
+  const rows=[{...day,type:'day'}];if(!days[index+1]||weekStart(days[index+1].day)!==weekStart(day.day))rows.push({...totals.weeks.find(w=>w.key===weekStart(day.day)),type:'week'});return rows;
+});}
+export function timePairCount(report){return Math.max(2,...dailyRows(report).map(day=>day.intervals.length));}
 export function totalNotes(total){return [total.partial?`Período selecionado: ${displayDate(total.selectedFrom)} a ${displayDate(total.selectedTo)}`:'',total.unquantifiableDays?`${total.unquantifiableDays} dia(s) com duração não apurável ou parcial; total dos intervalos disponíveis`:'',total.hasAlerts?'* Existem registros com alertas específicos':''].filter(Boolean).join('. ');}

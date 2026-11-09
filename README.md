@@ -77,3 +77,9 @@ As datas de entrada e apresentação usam DD-MM-AAAA (meses, MM-AAAA). O JSON re
 Posições dentro da área que não estejam cobertas por uma visita agora aparecem no resumo como primeira/última posição registrada, inclusive quando existem outras visitas naquele dia. Separações por ponto externo ou lacuna acima do limite produzem linhas diferentes. Esses horários não são tratados como chegada/saída exatas e não viram duração contínua. Os totais mantêm apenas intervalos de visitas apuráveis e indicam parcialidade quando restam posições sem duração.
 
 Caso reproduzido: visita mais próxima a 70,8 m, posições a 3 m e raio 50 m. A visita fica fora da área, mas as posições devem continuar visíveis. O programa não amplia o raio nem conclui ausência. A correção foi validada com dados sintéticos equivalentes, sem acesso ao histórico do usuário.
+
+## Relatório diário 0.6
+
+Cada dia ocupa uma única linha, com data DD-MM-AAAA, dia da semana, Entrada 1, Saída 1, Entrada 2, Saída 2 e permanência. Se houver mais intervalos, novos pares são acrescentados; retornos não são omitidos. Posições sem visita continuam explicitamente identificadas e não ganham duração contínua.
+
+Os segundos são descartados em cada extremo antes do cálculo (sem arredondar para o minuto mais próximo). A mesma regra é usada na duração por intervalo, união diária e totais semanais/mensais, com exibição HH:MM e duração h/min. Os horários completos originais permanecem nos dados de suporte/ISO para rastreabilidade. A versão dos critérios foi atualizada.
