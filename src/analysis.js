@@ -1,8 +1,9 @@
 import {toMinute,dayAt} from './dates.js';
 import {applySpatialTransitions,spatialSessions} from './estimation.js';
+import {applyConservativeInference} from './inference.js';
 export {dayAt} from './dates.js';
-export const VERSION = '0.8.0';
-export const RULES = 'experimental-2026-11-09.4';
+export const VERSION = '0.9.0';
+export const RULES = 'experimental-2026-11-09.5';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';
 export const HASH_NOTICE = 'O hash permite verificar se o arquivo permanece idêntico ao importado. Ele não comprova a autenticidade da origem nem a ausência de alterações anteriores à importação.';
@@ -71,7 +72,7 @@ export function normalize(json) {
     if(start===null || end===null || end<start) alerts.push({kind:'Inconsistência',reason:'Horário ausente, inválido ou fim anterior ao início.'});
     const spatial=visit?.topCandidate?.placeLocation;
     const accuracy=spatial?.accuracyMeters??spatial?.horizontalAccuracyMeters??visit?.accuracyMeters??null;
-    const record={ref,start,end,point:coordinates(spatial),accuracy:typeof accuracy==='number'&&Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,placeId:visit?.topCandidate?.placeId ?? null,semanticType:visit?.topCandidate?.semanticType ?? null,visitProbability:visit?.probability ?? null,placeProbability:visit?.topCandidate?.probability ?? null,type:visit?'Visita interpretada pelo Google':s.activity?'Atividade':s.timelinePath?'Trajeto':'Sem classificação',alerts,original:s};
+    const record={ref,start,end,point:coordinates(spatial),accuracy:typeof accuracy==='number'&&Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,placeId:visit?.topCandidate?.placeId ?? null,semanticType:visit?.topCandidate?.semanticType ?? null,visitProbability:visit?.probability ?? null,placeProbability:visit?.topCandidate?.probability ?? null,activityType:s.activity?.topCandidate?.type??s.activity?.type??null,type:visit?'Visita interpretada pelo Google':s.activity?'Atividade':s.timelinePath?'Trajeto':'Sem classificação',alerts,original:s};
     records.push(record);
     parsing.segments++;if(visit){parsing.visits++;if(record.point)parsing.visitsWithCoordinates++;else parsing.visitsWithoutCoordinates++;}
     (s.timelinePath||[]).forEach((p,j)=>addPoint(p,`${ref}.timelinePath[${j}]`,ref,p.time ?? (start!==null && p.durationMinutesOffsetFromStartTime!=null ? start+Number(p.durationMinutesOffsetFromStartTime)*60000 : null)));
@@ -106,7 +107,7 @@ export function analyze(data,params) {
   }
   const contextBefore=data.points.findLast(p=>p.time<begin),contextAfter=data.points.find(p=>p.time>=finish);
   const sourcePoints=[...(contextBefore&&begin-contextBefore.time<=params.maxGapMinutes*60000?[contextBefore]:[]),...data.points.filter(p=>p.time>=begin&&p.time<finish),...(contextAfter&&contextAfter.time-finish<=params.maxGapMinutes*60000?[contextAfter]:[])];
-  const points=sourcePoints.map(p=>({...p,context:p.time<begin||p.time>=finish,alerts:[],within:inside(p.point,params.area)}));
+  const points=sourcePoints.map(p=>({...p,context:p.time<begin||p.time>=finish,alerts:[],distanceMeters:distance(p.point,params.area),within:inside(p.point,params.area)}));
   points.forEach((p,i)=> {
     if(p.accuracy!=null && p.accuracy>params.maxAccuracy) p.alerts.push({kind:'Inconsistência',reason:`Precisão espacial informada de ${p.accuracy} m supera o limite de ${params.maxAccuracy} m.`});
     if(p.accuracy!=null && Math.abs(distance(p.point,params.area)-params.area.radius)<=p.accuracy && !params.area.polygon?.length) p.alerts.push({kind:'Insuficiência de dados',reason:'Margem de precisão cruza o limite da área.'});
@@ -132,8 +133,9 @@ export function analyze(data,params) {
     days.push({day,start:a,end:b,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods.map(p=>({start:toMinute(p.start),end:toMinute(p.end)}))):null,incompletePresence:seen.some(p=>!periods.some(v=>p.time>=v.start&&p.time<=v.end)),status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
   }
   days=applySpatialTransitions(days,points,params,positionSessions);
+  days=applyConservativeInference(days,points,params,data.records);
   const boundaryRefs=new Set(observations.flatMap(o=>[o.arrivalRef,o.departureRef]).filter(Boolean));
-  const spatialRefs=new Set(days.flatMap(day=>(day.spatialPeriods||[]).flatMap(p=>p.sourceRefs)));
+  const spatialRefs=new Set(days.flatMap(day=>[...(day.spatialPeriods||[]),...(day.inferredPeriods||[])].flatMap(p=>p.sourceRefs)));
   const minimum=list=>list.reduce((best,p)=>Math.min(best,distance(p,params.area)),Infinity);
   const finite=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
   const diagnostics={parsing:data.parsing,visitsInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google').length,visitsWithCoordinatesInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).length,positionsInPeriod:points.filter(p=>!p.context).length,visitsInArea:visits.length,positionsInArea:observations.length,nearestVisitMeters:finite(minimum(records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).map(r=>r.point))),nearestPositionMeters:finite(minimum(points.filter(p=>!p.context).map(p=>p.point))),radiusMeters:params.area.radius};
