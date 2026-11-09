@@ -1,8 +1,8 @@
 import {toMinute,dayAt} from './dates.js';
-import {applyPositionPairing} from './estimation.js';
+import {applySpatialTransitions,spatialSessions} from './estimation.js';
 export {dayAt} from './dates.js';
-export const VERSION = '0.7.0';
-export const RULES = 'experimental-2026-11-09.3';
+export const VERSION = '0.8.0';
+export const RULES = 'experimental-2026-11-09.4';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';
 export const HASH_NOTICE = 'O hash permite verificar se o arquivo permanece idêntico ao importado. Ele não comprova a autenticidade da origem nem a ausência de alterações anteriores à importação.';
@@ -97,14 +97,16 @@ export function analyze(data,params) {
   if((finish-begin)/86400000>3660) throw Error('Selecione no máximo dez anos por análise.');
   const overlaps=r=>r.start!==null&&r.end!==null&&r.end>=begin&&r.start<finish;
   const records=data.records.filter(overlaps).map(r=>({...r,alerts:[...r.alerts]}));
-  const recordByRef=new Map(records.map(r=>[r.ref,r]));
+  const recordByRef=new Map([...data.records,...records].map(r=>[r.ref,r]));
   const visits=records.filter(r=>r.type==='Visita interpretada pelo Google' && r.end>=r.start && inside(r.point,params.area));
   for(let i=0;i<visits.length;i++) {
     const v=visits[i];
     if(visits.some((w,j)=>j!==i&&w.start<v.end&&w.end>v.start)) v.alerts.push({kind:'Inconsistência',reason:'Visitas do estabelecimento se sobrepõem; duração diária usa união dos intervalos.'});
     if(data.records.filter(r=>r.end!==null).every(r=>r.end<=v.end)) v.alerts.push({kind:'Insuficiência de dados',reason:'Fim do último segmento da exportação não comprova saída.'});
   }
-  const points=data.points.filter(p=>p.time>=begin&&p.time<finish).map(p=>({...p,alerts:[],within:inside(p.point,params.area)}));
+  const contextBefore=data.points.findLast(p=>p.time<begin),contextAfter=data.points.find(p=>p.time>=finish);
+  const sourcePoints=[...(contextBefore&&begin-contextBefore.time<=params.maxGapMinutes*60000?[contextBefore]:[]),...data.points.filter(p=>p.time>=begin&&p.time<finish),...(contextAfter&&contextAfter.time-finish<=params.maxGapMinutes*60000?[contextAfter]:[])];
+  const points=sourcePoints.map(p=>({...p,context:p.time<begin||p.time>=finish,alerts:[],within:inside(p.point,params.area)}));
   points.forEach((p,i)=> {
     if(p.accuracy!=null && p.accuracy>params.maxAccuracy) p.alerts.push({kind:'Inconsistência',reason:`Precisão espacial informada de ${p.accuracy} m supera o limite de ${params.maxAccuracy} m.`});
     if(p.accuracy!=null && Math.abs(distance(p.point,params.area)-params.area.radius)<=p.accuracy && !params.area.polygon?.length) p.alerts.push({kind:'Insuficiência de dados',reason:'Margem de precisão cruza o limite da área.'});
@@ -114,24 +116,26 @@ export function analyze(data,params) {
     // A visit is a semantic interval; nearby trajectory endpoints can fall outside a
     // small establishment radius. That fact alone is not an inconsistency.
   });
-  const observations=points.flatMap((p,i)=> {
-    if(!p.within)return [];
-    const prev=points[i-1],next=points[i+1],limit=params.maxGapMinutes*60000;
-    const arrival=prev&&!prev.within&&p.time-prev.time<=limit?[prev.time,p.time]:null,departure=next&&!next.within&&next.time-p.time<=limit?[p.time,next.time]:null;
-    return [{ref:p.ref,time:p.time,arrival,departure,arrivalRef:arrival?prev.ref:null,departureRef:departure?next.ref:null,alerts:p.alerts}];
-  });
+  const transitionByRef=new Map(),positionSessions=spatialSessions(points,params.maxGapMinutes);
+  for(const session of positionSessions){
+    const arrivalOutside=session.arrivalWindow?session.boundarySamples.find(s=>s.time===session.arrivalWindow[0]):null,departureOutside=session.departureWindow?session.boundarySamples.find(s=>s.time===session.departureWindow[1]):null;
+    for(const item of session.first.items)transitionByRef.set(item.ref,{...(transitionByRef.get(item.ref)||{}),arrival:session.arrivalWindow,arrivalRef:arrivalOutside?.items[0]?.ref??null});
+    for(const item of session.last.items)transitionByRef.set(item.ref,{...(transitionByRef.get(item.ref)||{}),departure:session.departureWindow,departureRef:departureOutside?.items[0]?.ref??null});
+  }
+  const observations=points.flatMap(p=>p.within&&!p.context?[{ref:p.ref,time:p.time,arrival:null,departure:null,arrivalRef:null,departureRef:null,...(transitionByRef.get(p.ref)||{}),alerts:p.alerts}]:[]);
   let days=[];
   for(let day=params.from;day<=params.to;day=nextDay(day)) {
     const a=midnight(day,params.zone),b=midnight(nextDay(day),params.zone);
     const periods=visits.filter(v=>v.start<b&&v.end>a).map(v=>({ref:v.ref,start:Math.max(a,begin,v.start),end:Math.min(b,finish,v.end),originalStart:v.start,originalEnd:v.end,alerts:v.alerts}));
     const seen=observations.filter(p=>p.time>=a&&p.time<b), available=records.some(r=>r.start<b&&r.end>=a)||points.some(p=>p.time>=a&&p.time<b);
     const alerts=[...periods.flatMap(p=>p.alerts),...seen.flatMap(p=>p.alerts),...records.filter(r=>r.start<b&&r.end>=a).flatMap(r=>r.alerts)];
-    days.push({day,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods.map(p=>({start:toMinute(p.start),end:toMinute(p.end)}))):null,incompletePresence:seen.some(p=>!periods.some(v=>p.time>=v.start&&p.time<=v.end)),status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
+    days.push({day,start:a,end:b,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods.map(p=>({start:toMinute(p.start),end:toMinute(p.end)}))):null,incompletePresence:seen.some(p=>!periods.some(v=>p.time>=v.start&&p.time<=v.end)),status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
   }
-  days=applyPositionPairing(days,observations,params);
+  days=applySpatialTransitions(days,points,params,positionSessions);
   const boundaryRefs=new Set(observations.flatMap(o=>[o.arrivalRef,o.departureRef]).filter(Boolean));
+  const spatialRefs=new Set(days.flatMap(day=>(day.spatialPeriods||[]).flatMap(p=>p.sourceRefs)));
   const minimum=list=>list.reduce((best,p)=>Math.min(best,distance(p,params.area)),Infinity);
   const finite=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
-  const diagnostics={parsing:data.parsing,visitsInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google').length,visitsWithCoordinatesInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).length,positionsInPeriod:points.length,visitsInArea:visits.length,positionsInArea:observations.length,nearestVisitMeters:finite(minimum(records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).map(r=>r.point))),nearestPositionMeters:finite(minimum(points.map(p=>p.point))),radiusMeters:params.area.radius};
-  return {appVersion:VERSION,rulesVersion:RULES,params,coverage:data.coverage,diagnostics,days,records,points:points.filter(p=>p.within||boundaryRefs.has(p.ref)),observations,limitations:[ABSENCE,'Os períodos identificados podem não representar toda a permanência. Presença não equivale a tempo de trabalho.',HASH_NOTICE,'Critérios de intervenção são experimentais, não universais. Edições diretas do JSON e exclusões sem vestígios podem não ser detectadas.','Horários de visitas são interpretações do Google. Posições isoladas não demonstram permanência contínua. Intervalos estimados não são horários exatos.','Histórico local não é inviolável e não certifica cadeia de custódia anterior à importação.']};
+  const diagnostics={parsing:data.parsing,visitsInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google').length,visitsWithCoordinatesInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).length,positionsInPeriod:points.filter(p=>!p.context).length,visitsInArea:visits.length,positionsInArea:observations.length,nearestVisitMeters:finite(minimum(records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).map(r=>r.point))),nearestPositionMeters:finite(minimum(points.filter(p=>!p.context).map(p=>p.point))),radiusMeters:params.area.radius};
+  return {appVersion:VERSION,rulesVersion:RULES,params,coverage:data.coverage,diagnostics,days,records,points:points.filter(p=>p.within&&!p.context||boundaryRefs.has(p.ref)||spatialRefs.has(p.ref)),observations,limitations:[ABSENCE,'Os períodos identificados podem não representar toda a permanência. Presença não equivale a tempo de trabalho.',HASH_NOTICE,'Critérios de intervenção são experimentais, não universais. Edições diretas do JSON e exclusões sem vestígios podem não ser detectadas.','Horários de visitas são interpretações do Google. Posições isoladas não demonstram permanência contínua. Intervalos estimados não são horários exatos.','Histórico local não é inviolável e não certifica cadeia de custódia anterior à importação.']};
 }

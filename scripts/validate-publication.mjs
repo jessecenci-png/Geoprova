@@ -1,0 +1,14 @@
+import {readFile,access} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const pkg=JSON.parse(await readFile('package.json','utf8'));
+const deployed=await readFile('docs/index.html');
+const source=await readFile('publicacao/index.html');
+if(!deployed.equals(source))throw Error('As edições de publicação estão diferentes.');
+const html=deployed.toString('utf8');
+const script=html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+if(!script||!script.includes(pkg.version))throw Error('O HTML não contém a versão atual do aplicativo.');
+const hash=createHash('sha256').update(script).digest('base64');
+if(!html.includes(`script-src 'sha256-${hash}'`))throw Error('Hash CSP do aplicativo inválido.');
+if(!html.startsWith('<!doctype html>'))throw Error('O documento principal está inválido.');
+await access('docs/.nojekyll');
+console.log(`Publicação ${pkg.version}: documento, versão, CSP e cópia de entrega conferidos.`);
