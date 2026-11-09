@@ -1,6 +1,8 @@
-import {toMinute} from './dates.js';
-export const VERSION = '0.6.2';
-export const RULES = 'experimental-2026-11-09.2';
+import {toMinute,dayAt} from './dates.js';
+import {applyPositionPairing} from './estimation.js';
+export {dayAt} from './dates.js';
+export const VERSION = '0.7.0';
+export const RULES = 'experimental-2026-11-09.3';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';
 export const HASH_NOTICE = 'O hash permite verificar se o arquivo permanece idêntico ao importado. Ele não comprova a autenticidade da origem nem a ausência de alterações anteriores à importação.';
@@ -31,7 +33,6 @@ export function inside(point, area) {
   }
   return distance(point,area)<=area.radius;
 }
-export function dayAt(time, zone) { const p=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(time)); return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-'); }
 export function midnight(day, zone) {
   const target=Date.parse(day+'T00:00:00Z'); let t=target;
   for(let i=0;i<4;i++) {
@@ -119,7 +120,7 @@ export function analyze(data,params) {
     const arrival=prev&&!prev.within&&p.time-prev.time<=limit?[prev.time,p.time]:null,departure=next&&!next.within&&next.time-p.time<=limit?[p.time,next.time]:null;
     return [{ref:p.ref,time:p.time,arrival,departure,arrivalRef:arrival?prev.ref:null,departureRef:departure?next.ref:null,alerts:p.alerts}];
   });
-  const days=[];
+  let days=[];
   for(let day=params.from;day<=params.to;day=nextDay(day)) {
     const a=midnight(day,params.zone),b=midnight(nextDay(day),params.zone);
     const periods=visits.filter(v=>v.start<b&&v.end>a).map(v=>({ref:v.ref,start:Math.max(a,begin,v.start),end:Math.min(b,finish,v.end),originalStart:v.start,originalEnd:v.end,alerts:v.alerts}));
@@ -127,6 +128,7 @@ export function analyze(data,params) {
     const alerts=[...periods.flatMap(p=>p.alerts),...seen.flatMap(p=>p.alerts),...records.filter(r=>r.start<b&&r.end>=a).flatMap(r=>r.alerts)];
     days.push({day,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods.map(p=>({start:toMinute(p.start),end:toMinute(p.end)}))):null,incompletePresence:seen.some(p=>!periods.some(v=>p.time>=v.start&&p.time<=v.end)),status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
   }
+  days=applyPositionPairing(days,observations,params);
   const boundaryRefs=new Set(observations.flatMap(o=>[o.arrivalRef,o.departureRef]).filter(Boolean));
   const minimum=list=>list.reduce((best,p)=>Math.min(best,distance(p,params.area)),Infinity);
   const finite=v=>Number.isFinite(v)?Math.round(v*10)/10:null;

@@ -10,7 +10,7 @@ test('dois intervalos: uma linha diária, dia da semana e quatro células de hor
  const report=analyze(normalize({semanticSegments:[segment('08:44:59','11:41:01'),segment('12:20:59','17:00:01')]}),params);
  const days=dailyRows(report);assert.equal(days.length,1);assert.equal(days[0].weekday,'segunda-feira');assert.equal(days[0].intervals.length,2);assert.equal(groupedReportRows(report).filter(r=>r.type==='day').length,1);assert.equal(timePairCount(report),2);
  assert.equal(days[0].durationMs,457*60000);assert.equal(periodTotals(report).weeks[0].durationMs,457*60000);assert.equal(durationText(days[0].durationMs),'7h 37min');
- const book=new ExcelJS.Workbook();await book.xlsx.load(await workbook(report));const s=book.getWorksheet('Resumo diário');assert.equal(s.rowCount,3);assert.deepEqual(s.getRow(1).values.slice(1),['Data / semana','Dia da semana','Entrada 1','Saída 1','Entrada 2','Saída 2','Total diário','Alertas / cobertura']);
+ const book=new ExcelJS.Workbook();await book.xlsx.load(await workbook(report));const s=book.getWorksheet('Resumo diário');assert.equal(s.rowCount,3);assert.deepEqual(s.getRow(1).values.slice(1),['Data / semana','Dia da semana','Entrada 1','Saída 1','Entrada 2','Saída 2','Total do dia','Alertas / cobertura']);
  for(const column of ['C','D','E','F']){assert.equal(s.getCell(column+'2').value.getUTCSeconds(),0);assert.equal(s.getCell(column+'2').numFmt,'dd-mm-yyyy hh:mm');}assert.equal(s.getCell('C2').value.getUTCMinutes(),44);assert.equal(s.getCell('F2').value.getUTCHours(),17);assert.equal(s.getCell('G2').numFmt,'[h]:mm');
  assert.equal(report.records[0].original.startTime,'2026-11-09T08:44:59-03:00');
 });

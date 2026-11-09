@@ -17,5 +17,5 @@ test('rótulos de alerta são curtos e não excluem o fundamento técnico',()=>{
 test('totais diário, semanal e mensal permanecem somando os intervalos apuráveis',async()=>{
  const semanticSegments=[['08:00:00','12:00:00'],['13:00:00','17:00:00']].map(([a,b])=>({startTime:`2025-09-08T${a}-03:00`,endTime:`2025-09-08T${b}-03:00`,visit:{topCandidate:{placeLocation:{latLng:'-23,-46'}}}}));
  const report=analyze(normalize({semanticSegments}),params);assert.equal(dailyRows(report)[0].durationMs,8*3600000);assert.equal(periodTotals(report).weeks[0].durationMs,8*3600000);assert.equal(periodTotals(report).months[0].durationMs,8*3600000);
- const book=new ExcelJS.Workbook();await book.xlsx.load(await workbook(report));assert.equal(book.getWorksheet('Totais semanais').state,'visible');assert.equal(book.getWorksheet('Totais mensais').state,'visible');assert.equal(book.getWorksheet('Totais semanais').getCell('C2').value.getUTCHours(),8);
+ const book=new ExcelJS.Workbook();await book.xlsx.load(await workbook(report));assert.equal(book.getWorksheet('Totais semanais').state,'hidden');assert.equal(book.getWorksheet('Totais mensais').state,'visible');assert.equal(book.getWorksheet('Totais semanais').getCell('C2').value.getUTCHours(),8);
 });

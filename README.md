@@ -97,3 +97,11 @@ A planilha abre em Resumo diário, seguida de Totais mensais e Informações do 
 Confirmação do local com área clicável e checkbox maiores. Alertas resumidos: Possível alteração do registro e Possível remoção do registro, com fundamentos preservados no suporte, sem conclusões automáticas de validade jurídica.
 
 Posições isoladas deixam de ser duplicadas em Entrada/Saída. Cada horário em minutos aparece uma vez por dia na coluna Posições registradas; múltiplas fontes ou segundos diferentes no mesmo minuto permanecem nos registros de suporte. Somente visitas com intervalo usam pares Entrada/Saída. Isso evita dezenas de colunas vazias e mantém o total diário à vista. A tabela inclui subtotais semanais e há tabelas/abas próprias de totais semanais e mensais. Duração não apurável permanece nula quando só há posições esparsas.
+
+## Cartão de permanência 0.7
+
+Uma linha por data, com Entrada 1/Saída 1, Entrada 2/Saída 2 e total do dia; subtotal semanal imediatamente depois do último dia de cada semana. Ao final do relatório principal fica apenas o resumo mensal. A aba semanal auxiliar é oculta; o resumo diário do XLSX já contém os subtotais locais.
+
+O usuário autorizou o modo de pares estimados: por padrão no formulário, visitas e pares consecutivos de posições, identificado por † nos horários e totais e registrado em positionPairing=consecutive. A opção Somente intervalos de visitas desativa a estimativa. Os pontos são ordenados por dia no fuso escolhido, os segundos são descartados e agrupam-se marcas a até um minuto da primeira marca do grupo, preservando a primeira como representante e todas as referências de origem. Os grupos são pareados 1–2, 3–4 etc. Um número ímpar mantém o último horário sem saída e o total parcial. Não são criados horários finais nem pares entre dias diferentes.
+
+Posições no mesmo minuto ou até um minuto do limite de uma visita ficam apenas como apoio e não alteram a visita. Visitas sobrepostas são unidas apenas na apresentação, preservando os registros e alertas de origem. Retornos reais não sobrepostos a um minuto de distância não são apagados. Totais usam a união dos intervalos de visita e dos pares estimados completos, sem dupla contagem. O arquivo original nunca é modificado. Esses pares são uma hipótese de apuração autorizada pelo usuário, não comprovação de entrada/saída ou permanência contínua.
