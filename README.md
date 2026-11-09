@@ -83,3 +83,11 @@ Caso reproduzido: visita mais próxima a 70,8 m, posições a 3 m e raio 50 m. A
 Cada dia ocupa uma única linha, com data DD-MM-AAAA, dia da semana, Entrada 1, Saída 1, Entrada 2, Saída 2 e permanência. Se houver mais intervalos, novos pares são acrescentados; retornos não são omitidos. Posições sem visita continuam explicitamente identificadas e não ganham duração contínua.
 
 Os segundos são descartados em cada extremo antes do cálculo (sem arredondar para o minuto mais próximo). A mesma regra é usada na duração por intervalo, união diária e totais semanais/mensais, com exibição HH:MM e duração h/min. Os horários completos originais permanecem nos dados de suporte/ISO para rastreabilidade. A versão dos critérios foi atualizada.
+
+## Apresentação simplificada 0.6.1
+
+Raio inicial: 100 m, ajustável. Removido o texto sobre cache, servidor e funcionamento interno do provedor do formulário. Mantidos um aviso curto de privacidade e uma indicação de que a busca/mapa consultam serviços externos; informações complementares ficam recolhidas. A orientação de exportação pelo Android é preservada.
+
+O relatório principal começa pela identificação do local, período, tabela diária e totais. Metodologia, diagnóstico, aquisição e JSON de parâmetros ficam em uma seção recolhida e não são incluídos na impressão. A identificação do arquivo e seu hash ficam em rodapé discreto. Alertas específicos continuam associados aos registros, com descrição resumida na tela e fundamentos completos no suporte.
+
+A planilha abre em Resumo diário, seguida de Totais mensais e Informações do relatório. Entradas e saídas, Metodologia e integridade e Registros de suporte ficam ocultas, podendo ser reexibidas pelo leitor. Dados e rastreabilidade não foram excluídos.

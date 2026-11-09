@@ -1,5 +1,5 @@
 import {toMinute} from './dates.js';
-export const VERSION = '0.6.0';
+export const VERSION = '0.6.1';
 export const RULES = 'experimental-2026-11-09.2';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';

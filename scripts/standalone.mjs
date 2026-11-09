@@ -7,5 +7,5 @@ const css=(await readFile('node_modules/leaflet/dist/leaflet.css','utf8')).repla
 const hash=s=>createHash('sha256').update(s).digest('base64');
 const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https://photon.komoot.io; script-src 'sha256-${hash(script)}'; style-src 'unsafe-inline'; img-src data: blob: https://tile.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Geoprova — versão local</title><style>${css}</style></head><body><div id="app"></div><script>${script}</script></body></html>`;
 await mkdir('artifacts',{recursive:true});
-await writeFile('artifacts/Geoprova-0.6.html',html);
-console.log('Versão baixável gerada em artifacts/Geoprova-0.6.html');
+await writeFile('artifacts/Geoprova-0.6.1.html',html);
+console.log('Versão baixável gerada em artifacts/Geoprova-0.6.1.html');
