@@ -29,7 +29,7 @@ export function summaryRows(report) {
       const outside=previous&&(report.points||[]).some(p=>p.within===false&&p.time>previous.time&&p.time<observation.time);
       if(!previous||outside||observation.time-previous.time>gap)groups.push([observation]);else groups.at(-1).push(observation);
     }
-    const positions=groups.map(group=>({day:day.day,arrival:null,departure:null,firstPosition:group[0].time,lastPosition:group.at(-1).time,positionOnly:true,durationMs:null,accuracy:null,supportAccuracy:null,ref:group[0].ref,refs:group.map(p=>p.ref),alerts:[...new Map(group.flatMap(p=>p.alerts).map(a=>[a.kind+'|'+a.reason,a])).values()],status:'Posições registradas no local; permanência não apurável'}));
+    const positions=groups.map(group=>({day:day.day,arrival:null,departure:null,firstPosition:group[0].time,lastPosition:group.at(-1).time,positionTimes:group.map(p=>p.time),positionOnly:true,durationMs:null,accuracy:null,supportAccuracy:null,ref:group[0].ref,refs:group.map(p=>p.ref),alerts:[...new Map(group.flatMap(p=>p.alerts).map(a=>[a.kind+'|'+a.reason,a])).values()],status:'Posições registradas no local; permanência não apurável'}));
     const rows=[...visitRows,...positions].sort((a,b)=>(a.arrival??a.firstPosition)-(b.arrival??b.firstPosition));
     return rows.length?rows:[{day:day.day,arrival:null,departure:null,durationMs:null,accuracy:null,supportAccuracy:null,ref:null,alerts:day.alerts,status:day.status}];
   });
@@ -47,10 +47,10 @@ export function reportRows(report){const rows=summaryRows(report),totals=periodT
 });}
 export function dailyRows(report){
   const rows=summaryRows(report).map((row,index)=>({...row,rowNumber:index+1}));
-  return report.days.map(day=>{const sameDay=rows.filter(row=>row.day===day.day);return {day:day.day,weekday:weekdayName(day.day),durationMs:day.durationMs,alerts:day.alerts,status:day.status,emptyRowNumber:sameDay[0]?.rowNumber,intervals:sameDay.filter(row=>row.arrival!=null||row.firstPosition!=null)};});
+  return report.days.map(day=>{const sameDay=rows.filter(row=>row.day===day.day),intervals=sameDay.filter(row=>row.arrival!=null||row.firstPosition!=null),visits=intervals.filter(row=>!row.positionOnly),positions=intervals.filter(row=>row.positionOnly);return {day:day.day,weekday:weekdayName(day.day),durationMs:day.durationMs,alerts:day.alerts,status:day.status,emptyRowNumber:sameDay[0]?.rowNumber,intervals,visits,positionRows:positions,positionTimes:[...new Set(positions.flatMap(row=>row.positionTimes||[row.firstPosition,row.lastPosition]).filter(t=>t!=null).map(toMinute))].sort((a,b)=>a-b)};});
 }
 export function groupedReportRows(report){const days=dailyRows(report),totals=periodTotals(report);return days.flatMap((day,index)=>{
   const rows=[{...day,type:'day'}];if(!days[index+1]||weekStart(days[index+1].day)!==weekStart(day.day))rows.push({...totals.weeks.find(w=>w.key===weekStart(day.day)),type:'week'});return rows;
 });}
-export function timePairCount(report){return Math.max(2,...dailyRows(report).map(day=>day.intervals.length));}
+export function timePairCount(report){return Math.max(2,...dailyRows(report).map(day=>day.visits.length));}
 export function totalNotes(total){return [total.partial?`Período selecionado: ${displayDate(total.selectedFrom)} a ${displayDate(total.selectedTo)}`:'',total.unquantifiableDays?`${total.unquantifiableDays} dia(s) com duração não apurável ou parcial; total dos intervalos disponíveis`:'',total.hasAlerts?'* Existem registros com alertas específicos':''].filter(Boolean).join('. ');}

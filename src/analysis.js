@@ -1,5 +1,5 @@
 import {toMinute} from './dates.js';
-export const VERSION = '0.6.1';
+export const VERSION = '0.6.2';
 export const RULES = 'experimental-2026-11-09.2';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';
@@ -131,5 +131,5 @@ export function analyze(data,params) {
   const minimum=list=>list.reduce((best,p)=>Math.min(best,distance(p,params.area)),Infinity);
   const finite=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
   const diagnostics={parsing:data.parsing,visitsInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google').length,visitsWithCoordinatesInPeriod:records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).length,positionsInPeriod:points.length,visitsInArea:visits.length,positionsInArea:observations.length,nearestVisitMeters:finite(minimum(records.filter(r=>r.type==='Visita interpretada pelo Google'&&r.point).map(r=>r.point))),nearestPositionMeters:finite(minimum(points.map(p=>p.point))),radiusMeters:params.area.radius};
-  return {appVersion:VERSION,rulesVersion:RULES,params,coverage:data.coverage,diagnostics,days,records,points:points.filter(p=>p.within||boundaryRefs.has(p.ref)),observations,limitations:[ABSENCE,'Os períodos identificados podem não representar toda a permanência. Presença não equivale a tempo de trabalho.',HASH_NOTICE,'Critérios de intervenção são experimentais, não universais. Correções podem ser legítimas. Edições diretas do JSON e exclusões sem vestígios podem não ser detectadas.','Horários de visitas são interpretações do Google. Posições isoladas não demonstram permanência contínua. Intervalos estimados não são horários exatos.','Histórico local não é inviolável e não certifica cadeia de custódia anterior à importação.']};
+  return {appVersion:VERSION,rulesVersion:RULES,params,coverage:data.coverage,diagnostics,days,records,points:points.filter(p=>p.within||boundaryRefs.has(p.ref)),observations,limitations:[ABSENCE,'Os períodos identificados podem não representar toda a permanência. Presença não equivale a tempo de trabalho.',HASH_NOTICE,'Critérios de intervenção são experimentais, não universais. Edições diretas do JSON e exclusões sem vestígios podem não ser detectadas.','Horários de visitas são interpretações do Google. Posições isoladas não demonstram permanência contínua. Intervalos estimados não são horários exatos.','Histórico local não é inviolável e não certifica cadeia de custódia anterior à importação.']};
 }

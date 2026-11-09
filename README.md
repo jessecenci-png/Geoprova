@@ -91,3 +91,9 @@ Raio inicial: 100 m, ajustável. Removido o texto sobre cache, servidor e funcio
 O relatório principal começa pela identificação do local, período, tabela diária e totais. Metodologia, diagnóstico, aquisição e JSON de parâmetros ficam em uma seção recolhida e não são incluídos na impressão. A identificação do arquivo e seu hash ficam em rodapé discreto. Alertas específicos continuam associados aos registros, com descrição resumida na tela e fundamentos completos no suporte.
 
 A planilha abre em Resumo diário, seguida de Totais mensais e Informações do relatório. Entradas e saídas, Metodologia e integridade e Registros de suporte ficam ocultas, podendo ser reexibidas pelo leitor. Dados e rastreabilidade não foram excluídos.
+
+## Apresentação 0.6.2
+
+Confirmação do local com área clicável e checkbox maiores. Alertas resumidos: Possível alteração do registro e Possível remoção do registro, com fundamentos preservados no suporte, sem conclusões automáticas de validade jurídica.
+
+Posições isoladas deixam de ser duplicadas em Entrada/Saída. Cada horário em minutos aparece uma vez por dia na coluna Posições registradas; múltiplas fontes ou segundos diferentes no mesmo minuto permanecem nos registros de suporte. Somente visitas com intervalo usam pares Entrada/Saída. Isso evita dezenas de colunas vazias e mantém o total diário à vista. A tabela inclui subtotais semanais e há tabelas/abas próprias de totais semanais e mensais. Duração não apurável permanece nula quando só há posições esparsas.
