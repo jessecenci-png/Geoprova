@@ -52,7 +52,7 @@ test('exportação XLSX contém valores de data/duração e alertas; reproduçã
   const a=portable(analyze(data,params),{sha256:'test'}),b=portable(analyze(data,params),{sha256:'test'});assert.deepEqual(a,b);
   const bytes=await workbook({...a,id:'test'});const book=new ExcelJS.Workbook();await book.xlsx.load(bytes);
   assert.equal(book.worksheets.length,5);assert.equal(book.worksheets[0].name,'Metodologia e integridade');
-  const daily=book.getWorksheet('Resumo diário');assert.deepEqual(daily.getRow(1).values.slice(1),['Data / semana','Chegada','Saída','Permanência','Alertas / cobertura']);assert.ok(daily.getCell('A2').value instanceof Date);assert.equal(daily.getCell('B2').value.getUTCHours(),8);assert.equal(daily.getCell('C2').value.getUTCHours(),12);assert.match(daily.getCell('E2').value,/Possível intervenção manual/);
+  const daily=book.getWorksheet('Resumo diário');assert.deepEqual(daily.getRow(1).values.slice(1),['Data / semana','Chegada','Saída','Permanência','Alertas / cobertura','Primeira posição registrada','Última posição registrada']);assert.ok(daily.getCell('A2').value instanceof Date);assert.equal(daily.getCell('B2').value.getUTCHours(),8);assert.equal(daily.getCell('C2').value.getUTCHours(),12);assert.match(daily.getCell('E2').value,/Possível intervenção manual/);
   const duration=book.getWorksheet('Entradas e saídas').getCell('E2');assert.equal(duration.numFmt,'[h]:mm:ss');assert.equal(duration.value.getUTCHours(),4);
 });
 test('exportação omite locais pessoais e campos desconhecidos permanecem na fonte',()=>{

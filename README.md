@@ -69,3 +69,11 @@ A consulta real a Photon e OSM neste ambiente retornou `CONNECT 403` do proxy an
 O aplicativo completo está em `docs/index.html`, sem servidor Node ou instalação no computador. No GitHub, acesse Settings → Pages → Source: Deploy from a branch → Branch: entrega-geoprova → Folder: /docs → Save. O endereço esperado após a publicação é https://jessecenci-png.github.io/Geoprova/ . A publicação depende das configurações e da disponibilidade do GitHub Pages para este repositório. O arquivo .nojekyll evita processamento do HTML compilado.
 
 Essa edição é estática e consulta o Photon diretamente. O histórico e os relatórios continuam no navegador; busca e imagens dependem dos provedores externos. Preparar os arquivos não confirma que o Pages foi ativado ou que as consultas reais funcionam. A tentativa de consultar/configurar o Pages pela API deste ambiente retornou Forbidden.
+
+## Correção 0.5.1 — posições sem visita e datas
+
+As datas de entrada e apresentação usam DD-MM-AAAA (meses, MM-AAAA). O JSON reproduzível e os dados técnicos preservam ISO; células XLSX continuam como datas com formato dd-mm-yyyy. Datas inválidas são rejeitadas.
+
+Posições dentro da área que não estejam cobertas por uma visita agora aparecem no resumo como primeira/última posição registrada, inclusive quando existem outras visitas naquele dia. Separações por ponto externo ou lacuna acima do limite produzem linhas diferentes. Esses horários não são tratados como chegada/saída exatas e não viram duração contínua. Os totais mantêm apenas intervalos de visitas apuráveis e indicam parcialidade quando restam posições sem duração.
+
+Caso reproduzido: visita mais próxima a 70,8 m, posições a 3 m e raio 50 m. A visita fica fora da área, mas as posições devem continuar visíveis. O programa não amplia o raio nem conclui ausência. A correção foi validada com dados sintéticos equivalentes, sem acesso ao histórico do usuário.

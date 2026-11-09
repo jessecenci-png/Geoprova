@@ -1,5 +1,5 @@
-export const VERSION = '0.5.0';
-export const RULES = 'experimental-2026-11-04.4';
+export const VERSION = '0.5.1';
+export const RULES = 'experimental-2026-11-09.1';
 export const PRIVACY = 'Seus dados de localização são processados neste dispositivo e não são enviados ao criador do software.';
 export const ABSENCE = 'A ausência de registros de localização não significa que a pessoa esteve ausente do local de trabalho. Pode decorrer de falhas de localização, configurações do aparelho, interrupções na coleta ou outras limitações dos dados.';
 export const HASH_NOTICE = 'O hash permite verificar se o arquivo permanece idêntico ao importado. Ele não comprova a autenticidade da origem nem a ausência de alterações anteriores à importação.';
@@ -95,6 +95,7 @@ export function analyze(data,params) {
   if((finish-begin)/86400000>3660) throw Error('Selecione no máximo dez anos por análise.');
   const overlaps=r=>r.start!==null&&r.end!==null&&r.end>=begin&&r.start<finish;
   const records=data.records.filter(overlaps).map(r=>({...r,alerts:[...r.alerts]}));
+  const recordByRef=new Map(records.map(r=>[r.ref,r]));
   const visits=records.filter(r=>r.type==='Visita interpretada pelo Google' && r.end>=r.start && inside(r.point,params.area));
   for(let i=0;i<visits.length;i++) {
     const v=visits[i];
@@ -107,7 +108,7 @@ export function analyze(data,params) {
     if(p.accuracy!=null && Math.abs(distance(p.point,params.area)-params.area.radius)<=p.accuracy && !params.area.polygon?.length) p.alerts.push({kind:'Insuficiência de dados',reason:'Margem de precisão cruza o limite da área.'});
     const prev=points[i-1];
     if(prev && p.time>prev.time && distance(prev.point,p.point)/((p.time-prev.time)/1000)>params.maxSpeed) p.alerts.push({kind:'Inconsistência',reason:`Deslocamento entre ${prev.ref} e ${p.ref} supera ${params.maxSpeed} m/s.`});
-    if(p.parent) p.alerts.push(...(records.find(r=>r.ref===p.parent)?.alerts||[]));
+    if(p.parent) p.alerts.push(...(recordByRef.get(p.parent)?.alerts||[]));
     // A visit is a semantic interval; nearby trajectory endpoints can fall outside a
     // small establishment radius. That fact alone is not an inconsistency.
   });
@@ -123,7 +124,7 @@ export function analyze(data,params) {
     const periods=visits.filter(v=>v.start<b&&v.end>a).map(v=>({ref:v.ref,start:Math.max(a,begin,v.start),end:Math.min(b,finish,v.end),originalStart:v.start,originalEnd:v.end,alerts:v.alerts}));
     const seen=observations.filter(p=>p.time>=a&&p.time<b), available=records.some(r=>r.start<b&&r.end>=a)||points.some(p=>p.time>=a&&p.time<b);
     const alerts=[...periods.flatMap(p=>p.alerts),...seen.flatMap(p=>p.alerts),...records.filter(r=>r.start<b&&r.end>=a).flatMap(r=>r.alerts)];
-    days.push({day,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods):null,status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
+    days.push({day,periods,firstPosition:seen[0]?.time??null,lastPosition:seen.at(-1)?.time??null,durationMs:periods.length?unionDuration(periods):null,incompletePresence:seen.some(p=>!periods.some(v=>p.time>=v.start&&p.time<=v.end)),status:periods.length?'Presença segundo visitas interpretadas pelo Google':seen.length?'Posições no local; permanência não apurável':available?'Dados insuficientes para determinar a presença':'Sem registros disponíveis',refs:[...new Set([...periods.map(p=>p.ref),...seen.map(p=>p.ref)])],alerts,notes:periods.some(p=>p.start!==p.originalStart||p.end!==p.originalEnd)?'Intervalo recortado aos limites do dia ou do período selecionado.':''});
   }
   const boundaryRefs=new Set(observations.flatMap(o=>[o.arrivalRef,o.departureRef]).filter(Boolean));
   const minimum=list=>list.reduce((best,p)=>Math.min(best,distance(p,params.area)),Infinity);
